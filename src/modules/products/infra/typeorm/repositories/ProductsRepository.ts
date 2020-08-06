@@ -1,8 +1,9 @@
-import { getRepository, Repository, In } from 'typeorm';
+import { getRepository, Repository } from 'typeorm';
 
 import IProductsRepository from '@modules/products/repositories/IProductsRepository';
 import ICreateProductDTO from '@modules/products/dtos/ICreateProductDTO';
 import IUpdateProductsQuantityDTO from '@modules/products/dtos/IUpdateProductsQuantityDTO';
+import AppError from '@shared/errors/AppError';
 import Product from '../entities/Product';
 
 interface IFindProducts {
@@ -47,8 +48,30 @@ class ProductsRepository implements IProductsRepository {
   public async updateQuantity(
     products: IUpdateProductsQuantityDTO[],
   ): Promise<Product[]> {
-    const productsUpdate = await this.ormRepository.save(products);
-    return productsUpdate;
+    const getProductsSelects = await this.ormRepository.findByIds(
+      products.map(product => product.id),
+    );
+
+    getProductsSelects.forEach(item => {
+      const productQuantity =
+        products.find(prod => prod.id === item.id)?.quantity || 0;
+
+      if (item.quantity - productQuantity < 0) {
+        throw new AppError('Missing products!');
+      }
+    });
+
+    const updateProducts = getProductsSelects.map(item => ({
+      ...item,
+      quantity: Number(
+        item.quantity -
+          (products.find(prod => prod.id === item.id)?.quantity || 0),
+      ),
+    }));
+
+    await this.ormRepository.save(updateProducts);
+
+    return updateProducts;
   }
 }
 
