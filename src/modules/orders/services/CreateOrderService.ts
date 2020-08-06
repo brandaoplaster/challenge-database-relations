@@ -41,7 +41,7 @@ class CreateOrderService {
       })),
     );
 
-    if (!productsList) {
+    if (productsList.length === 0) {
       throw new AppError('Products not exists');
     }
 
